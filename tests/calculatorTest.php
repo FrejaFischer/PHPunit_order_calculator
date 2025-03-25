@@ -14,9 +14,9 @@ class calculatorTest extends TestCase
     */
     #[DataProvider('CalculatePasses')]
 
-    public function testCalculatePasses(float $unitPrice, int $quantity, float $expected): void
+    public function testCalculatePasses(float $unitPrice, int $quantity, float $taxRate, float $expected): void
     {
-        $calculator = new OrderCalculator($unitPrice, $quantity);
+        $calculator = new OrderCalculator($unitPrice, $quantity, $taxRate);
 
         $result = $calculator->calculateFinalPrice();
 
@@ -26,11 +26,16 @@ class calculatorTest extends TestCase
     public static function CalculatePasses(): array
     {
         return [
-            [100,2,240],
-            [99.99,4,479.95], // with decimals
-            [0,4,0], // with zero
-            [10,10,108], // discount for 10
-            [10,21,214.2] // discount for over 20
+            [100, 1, 0.2, 120], // One product, no discount
+            [100, 2, 0, 200], // No tax rate
+            [100, 2, 0.35, 270], // A different tax rate
+            [99.99, 4, 0.2, 479.95], // Price with decimals
+            [0, 4, 0.2, 0], // Price is zero
+            [10, 10, 0.2, 108], // Minimum quantity for 10% discount
+            [10, 19, 0.2, 205.2], // Maximum quantity for 10% discount
+            [10, 20, 0.2, 204], // Minimum quantity for 15% discount
+            [10, 250, 0.2, 2550], // Hundres of products, 15% discount
+            [10, 1150, 0.2, 11730], // Thousands of products, 15% discount
         ];
     }
 
@@ -40,9 +45,9 @@ class calculatorTest extends TestCase
 
     #[DataProvider('CalculateFails')]
 
-    public function testCalculateFails(float $unitPrice, int $quantity, float $expected): void
+    public function testCalculateFails(float $unitPrice, int $quantity, float $taxRate, float $expected): void
     {
-        $calculator = new OrderCalculator($unitPrice, $quantity);
+        $calculator = new OrderCalculator($unitPrice, $quantity, $taxRate);
 
         $result = $calculator->calculateFinalPrice();
 
@@ -52,7 +57,7 @@ class calculatorTest extends TestCase
     public static function CalculateFails(): array
     {
         return [
-            [100,2,200] // wrong result without taxes
+            [100,2,0.2,200] // wrong result without taxes
         ];
     }
 
@@ -61,17 +66,18 @@ class calculatorTest extends TestCase
     */
     #[DataProvider('RaiseException')]
 
-    public function testExceptionInvalidSystem(float $unitPrice, int $quantity): void 
+    public function testExceptionInvalidSystem(float $unitPrice, int $quantity, float $taxRate): void 
     {
         $this->expectException(InvalidArgumentException::class);
-        $calculator = new OrderCalculator($unitPrice, $quantity);
+        $calculator = new OrderCalculator($unitPrice, $quantity, $taxRate);
     }
 
     public static function RaiseException(): array
     {
         return [
-            [-1,2], // negative unitprice
-            [1,-2] // negative quantity
+            [-1, 2, 0.2], // negative unitprice
+            [1, -2, 0.2], // negative quantity
+            [10, 2, -0.2] // negative tax rate
         ];
     }
 }
